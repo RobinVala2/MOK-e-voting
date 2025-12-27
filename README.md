@@ -37,6 +37,50 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
+## Architecture Diagrams
+
+The `diagrams/` folder contains UML diagrams that visualize the system architecture and protocol flow.
+
+### Wrapper Architecture (`wrapper.png`)
+
+Shows how our GUI wrapper integrates with the Hyperion protocol:
+- **client/GUI.py** - PyQt5 admin interface for user interaction
+- **client/hyperion_runner.py** - Subprocess runner that executes Hyperion and parses output
+- **hyperion/** - The core Hyperion voting protocol
+
+![Wrapper Architecture](diagrams/wrapper.png)
+
+### Protocol Flow (`flow.png`)
+
+Illustrates the main phases of the Hyperion e-voting protocol:
+1. **Setup** - Generate threshold cryptographic keys for tellers
+2. **Voting** - Voters encrypt and sign their ballots
+3. **Tallying** - Mixnet shuffling and threshold decryption
+4. **Notification** - Send verification data to voters
+5. **Verification** - Voters verify their vote was recorded correctly
+
+![Protocol Flow](diagrams/flow.png)
+
+### Sequence Diagram (`seq.png`)
+
+Shows the interaction between components during protocol execution:
+- User triggers the protocol via GUI
+- GUI calls hyperion_runner which spawns a subprocess
+- Hyperion executes all protocol phases
+- Results are parsed and displayed back to the user
+
+![Sequence Diagram](diagrams/seq.png)
+
+### Class Diagram (`ClassHyperion.png`)
+
+Displays the main classes and their relationships:
+- **Voter** - Handles key generation, vote encryption, and verification
+- **Teller** - Manages threshold decryption and mixnet operations
+- **AdminApp** - GUI controller class
+- **HyperionRunner** - Protocol execution and output parsing
+
+![Class Diagram](diagrams/ClassHyperion.png)
+
 ## License
 
 This project is for research and educational purposes. Refer to the [Hyperion project license](https://github.com/hyperion-voting/hyperion) for the underlying protocol.
