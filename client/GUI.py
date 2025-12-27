@@ -10,8 +10,7 @@ from PyQt5.QtCore import Qt
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-sys.path.insert(0, PROJECT_ROOT)
-from server.hyperion_runner import run_hyperion as hyperion_run
+from .hyperion_runner import run_hyperion as hyperion_run
 
 # Local storage for bulletin board
 LAST_BB = None
