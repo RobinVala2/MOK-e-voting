@@ -1,17 +1,22 @@
 import sys
-import asyncio
+import os
 import re
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout,
     QPushButton, QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
-    QSpinBox, QFormLayout, QGroupBox, QMessageBox
+    QSpinBox, QFormLayout, QGroupBox, QMessageBox, QProgressDialog
 )
-import httpx
+from PyQt5.QtCore import Qt
 
-SERVER = "http://127.0.0.1:8000"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+sys.path.insert(0, PROJECT_ROOT)
+from server.hyperion_runner import run_hyperion as hyperion_run
 
-# --- Helper functions ---
+# Local storage for bulletin board
+LAST_BB = None
+
+# Helper functions
 def format_vote_display(vote_str):
     """
     Format vote string to display x and y on separate lines.
@@ -32,28 +37,16 @@ def format_vote_display(vote_str):
         
         return f"x: {x_val}\ny: {y_val}\ncurve: {curve_val}"
     
-    # fallback
     return vote_str
 
 
-# --- API helpers ---
-async def run_hyperion(voters=50, tellers=3, threshold=2, max_votes=2):
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{SERVER}/hyperion",
-            json={
-                "voters": voters,
-                "tellers": tellers,
-                "threshold": threshold,
-                "max_votes": max_votes
-            }
-        )
-        return r.json()
-
-async def get_bb():
-    async with httpx.AsyncClient() as client:
-        r = await client.get(f"{SERVER}/bb")
-        return r.json()
+def get_bb_direct():
+    """
+    Get bulletin board from local storage.
+    """
+    if LAST_BB:
+        return {"status": "ok", "bb": LAST_BB}
+    return {"status": "error", "detail": "No bulletin board available. Run Hyperion first."}
 
 
 # --- Admin GUI ---
@@ -66,17 +59,14 @@ class AdminApp(QWidget):
         layout = QVBoxLayout()
         self.tabs = QTabWidget()
 
-        # Tab 1: Tally
         self.tab_tally = QWidget()
         self.tab_tally.setLayout(self.build_tally_tab())
         self.tabs.addTab(self.tab_tally, "Hyperion Protocol")
 
-        # Tab 2: Bulletin Board
         self.tab_bb = QWidget()
         self.tab_bb.setLayout(self.build_bb_tab())
         self.tabs.addTab(self.tab_bb, "Bulletin Board")
-
-        # Tab 3: PQC Mapping --> TBD: DELETE
+        # TBD: DELETE
         self.tab_pqc_map = QWidget()
         self.tab_pqc_map.setLayout(self.build_pqc_tab())
         self.tabs.addTab(self.tab_pqc_map, "PQC Mapping")
@@ -129,10 +119,10 @@ class AdminApp(QWidget):
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
         
-        btn_tally = QPushButton("Run Hyperion Protocol")
-        btn_tally.clicked.connect(self.do_tally)
+        self.btn_tally = QPushButton("Run Hyperion Protocol")
+        self.btn_tally.clicked.connect(self.do_tally)
 
-        btn_tally.setToolTip(
+        self.btn_tally.setToolTip(
             "Runs full Hyperion protocol.\n\n"
             "Classical: EC-ElGamal encryption, ECDSA signatures.\n\n"
             "PQC alternative: ML-KEM (encryption) + ML-DSA (signatures)."
@@ -147,7 +137,7 @@ class AdminApp(QWidget):
         self.table_tally.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table_tally.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
 
-        layout.addWidget(btn_tally)
+        layout.addWidget(self.btn_tally)
         layout.addWidget(self.table_tally)
         
         # Timing Statistics Table
@@ -236,6 +226,8 @@ class AdminApp(QWidget):
     #   ACTIONS
     # =========================
     def do_tally(self):
+        global LAST_BB
+        
         # Get settings from spin boxes
         voters = self.spin_voters.value()
         tellers = self.spin_tellers.value()
@@ -248,15 +240,33 @@ class AdminApp(QWidget):
                               f"Threshold ({threshold}) cannot be greater than number of tellers ({tellers})")
             return
 
+        # Show progress dialog
+        progress = QProgressDialog("Running Hyperion Protocol...", None, 0, 0, self)
+        progress.setWindowTitle("Please Wait")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setCancelButton(None)
+        progress.show()
+        QApplication.processEvents()
+
         try:
-            res = asyncio.run(run_hyperion(voters, tellers, threshold, max_votes))
+            old_cwd = os.getcwd()
+            os.chdir(PROJECT_ROOT)
+            result = hyperion_run(voters, tellers, threshold, max_votes)
+            os.chdir(old_cwd)
+            LAST_BB = result["bulletin_board"]
+            res = {
+                "status": "ok",
+                "tally": result["bulletin_board"],
+                "timings": result["timings"],
+            }
+            
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error running Hyperion protocol: {e}")
+            os.chdir(old_cwd)
+            progress.close()
+            QMessageBox.critical(self, "Error", f"Error running Hyperion protocol:\n{str(e)}")
             return
-        
-        if res.get("status") != "ok":
-            QMessageBox.critical(self, "Error", f"Error running Hyperion protocol:\n{res}")
-            return
+        finally:
+            progress.close()
 
         # Populate tally table
         tally_rows = res.get("tally", [])
@@ -325,16 +335,12 @@ class AdminApp(QWidget):
 
     def do_show_bb(self):
         """
-        Trigger GET /bb -> refresh Bulletin Board table
+        Get bulletin board from local storage and refresh table.
         """
-        try:
-            res = asyncio.run(get_bb())
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error fetching bulletin board: {e}")
-            return
+        res = get_bb_direct()
         
         if res.get("status") != "ok":
-            QMessageBox.critical(self, "Error", f"Error fetching bulletin board:\n{res}")
+            QMessageBox.warning(self, "No Data", res.get("detail", "No bulletin board available. Run Hyperion first."))
             return
 
         bb = res.get("bb", [])
