@@ -1,3 +1,5 @@
 hyperion/
 __pycache__/
 .venv/
+.DS_Store
+Hyperion-Timing-Data.xlsx
