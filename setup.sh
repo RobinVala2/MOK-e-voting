@@ -59,6 +59,7 @@ fi
 export PYTHONPATH="$HYPERION_DIR:$PYTHONPATH"
 
 cp "$MY_PROJECT_DIR/hyperion_files/parties.py" "$HYPERION_DIR/parties.py"
+cp "$MY_PROJECT_DIR/hyperion_files/main.py" "$HYPERION_DIR/main.py"
 
 echo
 echo "[INFO] Setup complete."
