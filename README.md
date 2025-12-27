@@ -39,18 +39,18 @@ chmod +x setup.sh
 
 ## Architecture Diagrams
 
-The `diagrams/` folder contains UML diagrams that visualize the system architecture and protocol flow.
+The `diagrams/` folder contains UML diagrams.
 
-### Wrapper Architecture (`wrapper.png`)
+### Wrapper Architecture
 
 Shows how our GUI wrapper integrates with the Hyperion protocol:
-- **client/GUI.py** - PyQt5 admin interface for user interaction
+- **client/GUI.py** - interface for user interaction
 - **client/hyperion_runner.py** - Subprocess runner that executes Hyperion and parses output
 - **hyperion/** - The core Hyperion voting protocol
 
 ![Wrapper Architecture](diagrams/wrapper.png)
 
-### Protocol Flow (`flow.png`)
+### Protocol Flow 
 
 Illustrates the main phases of the Hyperion e-voting protocol:
 1. **Setup** - Generate threshold cryptographic keys for tellers
@@ -61,7 +61,7 @@ Illustrates the main phases of the Hyperion e-voting protocol:
 
 ![Protocol Flow](diagrams/flow.png)
 
-### Sequence Diagram (`seq.png`)
+### Sequence Diagram
 
 Shows the interaction between components during protocol execution:
 - User triggers the protocol via GUI
@@ -71,7 +71,7 @@ Shows the interaction between components during protocol execution:
 
 ![Sequence Diagram](diagrams/seq.png)
 
-### Class Diagram (`ClassHyperion.png`)
+### Class Diagram
 
 Displays the main classes and their relationships:
 - **Voter** - Handles key generation, vote encryption, and verification

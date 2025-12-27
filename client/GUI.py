@@ -4,18 +4,18 @@ import re
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout,
     QPushButton, QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
-    QSpinBox, QFormLayout, QGroupBox, QMessageBox, QProgressDialog
+    QSpinBox, QFormLayout, QGroupBox, QMessageBox, QProgressDialog, QScrollArea,
+    QSplitter, QFrame, QSizePolicy
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap, QFont
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from .hyperion_runner import run_hyperion as hyperion_run
 
-# Local storage for bulletin board
 LAST_BB = None
 
-# Helper functions
 def format_vote_display(vote_str):
     """
     Format vote string to display x and y on separate lines.
@@ -48,7 +48,6 @@ def get_bb_direct():
     return {"status": "error", "detail": "No bulletin board available. Run Hyperion first."}
 
 
-# --- Admin GUI ---
 class AdminApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -65,18 +64,10 @@ class AdminApp(QWidget):
         self.tab_bb = QWidget()
         self.tab_bb.setLayout(self.build_bb_tab())
         self.tabs.addTab(self.tab_bb, "Bulletin Board")
-        # TBD: DELETE
-        self.tab_pqc_map = QWidget()
-        self.tab_pqc_map.setLayout(self.build_pqc_tab())
-        self.tabs.addTab(self.tab_pqc_map, "PQC Mapping")
 
         layout.addWidget(self.tabs)
         self.setLayout(layout)
     
-    # ==================
-    #   TABS
-    # ==================
-
     def build_tally_tab(self):
         layout = QVBoxLayout()
         
@@ -138,8 +129,7 @@ class AdminApp(QWidget):
 
         layout.addWidget(self.btn_tally)
         layout.addWidget(self.table_tally)
-        
-        # Timing Statistics Table
+
         self.stats_label = QLabel("Performance Statistics (seconds)")
         self.stats_label.hide()
         layout.addWidget(self.stats_label)
@@ -158,72 +148,218 @@ class AdminApp(QWidget):
 
     def build_bb_tab(self):
         layout = QVBoxLayout()
-        layout.addWidget(QLabel("Bulletin Board"))
+        
+        splitter = QSplitter(Qt.Vertical)
+        
+        top_widget = QWidget()
+        top_layout = QVBoxLayout(top_widget)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        
+        title_label = QLabel("Hyperion Protocol: How Results Are Computed")
+        title_font = QFont()
+        title_font.setPointSize(14)
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        top_layout.addWidget(title_label)
 
+        content_layout = QHBoxLayout()
+        
+        diagram_frame = QFrame()
+        diagram_frame.setFrameStyle(QFrame.StyledPanel)
+        diagram_layout = QVBoxLayout(diagram_frame)
+        
+        diagram_label = QLabel("Protocol Sequence")
+        diagram_label.setFont(QFont("", 10, QFont.Bold))
+        diagram_label.setAlignment(Qt.AlignCenter)
+        diagram_layout.addWidget(diagram_label)
+        
+        self.seq_diagram = QLabel()
+        self.seq_diagram.setAlignment(Qt.AlignCenter)
+        diagram_path = os.path.join(PROJECT_ROOT, "diagrams", "seq.png")
+        if os.path.exists(diagram_path):
+            pixmap = QPixmap(diagram_path)
+            scaled_pixmap = pixmap.scaledToWidth(350, Qt.SmoothTransformation)
+            self.seq_diagram.setPixmap(scaled_pixmap)
+        else:
+            self.seq_diagram.setText("(Sequence diagram not found)")
+        
+        scroll_diagram = QScrollArea()
+        scroll_diagram.setWidget(self.seq_diagram)
+        scroll_diagram.setWidgetResizable(True)
+        scroll_diagram.setMinimumWidth(380)
+        scroll_diagram.setMaximumWidth(400)
+        diagram_layout.addWidget(scroll_diagram)
+        content_layout.addWidget(diagram_frame)
+        
+        explanation_frame = QFrame()
+        explanation_frame.setFrameStyle(QFrame.StyledPanel)
+        explanation_layout = QVBoxLayout(explanation_frame)
+        
+        explanation_title = QLabel("Computation Process")
+        explanation_title.setFont(QFont("", 10, QFont.Bold))
+        explanation_layout.addWidget(explanation_title)
+        
+        self.explanation_text = QTextEdit()
+        self.explanation_text.setReadOnly(True)
+        self.explanation_text.setMinimumHeight(200)
+        self.explanation_text.setHtml(self._get_protocol_explanation())
+        explanation_layout.addWidget(self.explanation_text)
+        
+        content_layout.addWidget(explanation_frame, 1)
+        top_layout.addLayout(content_layout)
+        
+        splitter.addWidget(top_widget)
+        
+        bottom_widget = QWidget()
+        bottom_layout = QVBoxLayout(bottom_widget)
+        bottom_layout.setContentsMargins(0, 10, 0, 0)
+        
+        results_header = QHBoxLayout()
+        results_title = QLabel("Final Bulletin Board Results")
+        results_title.setFont(QFont("", 12, QFont.Bold))
+        results_header.addWidget(results_title)
+        
         btn_refresh = QPushButton("Refresh BB")
         btn_refresh.clicked.connect(self.do_show_bb)
-
         btn_refresh.setToolTip(
             "Displays the final bulletin board.\n\n"
             "Classical: EC-ElGamal commitments.\n"
             "PQC alternative: ML-KEM or lattice-based commitments."
         )
-
+        btn_refresh.setMaximumWidth(120)
+        results_header.addWidget(btn_refresh)
+        results_header.addStretch()
+        
+        bottom_layout.addLayout(results_header)
+        
+        data_explanation = QLabel(
+            "<b>Vote:</b> Elliptic curve point (x, y) representing the encrypted vote after threshold decryption. "
+            "<b>Commitment:</b> Base64-encoded cryptographic commitment used for verification."
+        )
+        data_explanation.setWordWrap(True)
+        data_explanation.setStyleSheet("color: #666; padding: 5px; background-color: #f5f5f5; border-radius: 3px;")
+        bottom_layout.addWidget(data_explanation)
+        
         self.table_bb = QTableWidget()
         self.table_bb.setColumnCount(3)
         self.table_bb.setHorizontalHeaderLabels(
-            ["Voter ID", "Vote", "Commitment"]
+            ["Voter ID", "Vote (Decrypted Point)", "Commitment (Base64)"]
         )
         self.table_bb.verticalHeader().setVisible(False)  
         self.table_bb.horizontalHeader().setStretchLastSection(True)
         self.table_bb.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.table_bb.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table_bb.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        bottom_layout.addWidget(self.table_bb)
+        
+        splitter.addWidget(bottom_widget)
 
-        layout.addWidget(btn_refresh)
-        layout.addWidget(self.table_bb)
-
+        splitter.setSizes([350, 350])
+        
+        layout.addWidget(splitter)
         return layout
-
     
-    def build_pqc_tab(self): # TBD: DELETE
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Mapping of Classical → Post-Quantum Components"))
+    def _get_protocol_explanation(self):
+        return """
+        <style>
+            body { font-family: Arial, sans-serif; font-size: 11px; }
+            h3 { color: #2c3e50; margin-bottom: 5px; margin-top: 15px; }
+            .phase { margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-left: 3px solid #3498db; }
+            .phase-title { font-weight: bold; color: #2980b9; }
+            .crypto { color: #8e44ad; font-family: monospace; font-size: 10px; }
+            .pqc { color: #27ae60; font-family: monospace; font-size: 10px; font-weight: bold; }
+            .pqc-note { color: #27ae60; font-style: italic; font-size: 10px; margin-top: 3px; }
+            ul { margin: 5px 0; padding-left: 20px; }
+            li { margin: 3px 0; }
+            .mapping { font-size: 10px; color: #555; margin-left: 15px; }
+            table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 10px; }
+            th { background-color: #3498db; color: white; padding: 5px; text-align: left; }
+            td { padding: 4px; border-bottom: 1px solid #ddd; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+        </style>
+        
+        <h3>How Hyperion Computes Voting Results</h3>
+        
+        <div class="phase">
+            <span class="phase-title">1. Setup Phase</span>
+            <ul>
+                <li>Generate <span class="crypto">threshold key shares</span> for T tellers using Shamir's Secret Sharing</li>
+                <li>Create a shared <span class="crypto">EC-ElGamal public key</span> (P-256 curve)</li>
+                <li>At least K of T tellers needed to decrypt (threshold = K)</li>
+            </ul>
+            <div class="pqc-note">⚡ PQC: <span class="pqc">Threshold ML-KEM</span> (experimental) replaces EC-ElGamal + Shamir</div>
+        </div>
+        
+        <div class="phase">
+            <span class="phase-title">2. Voting Phase</span>
+            <ul>
+                <li>Each voter generates a <span class="crypto">trapdoor keypair</span> (secret x, public h=xG)</li>
+                <li>Vote value v is encoded as point: <span class="crypto">M = vG</span></li>
+                <li>Encrypted using <span class="crypto">EC-ElGamal</span>: C = (rG, rY + M)</li>
+                <li>Voter signs ballot with <span class="crypto">ECDSA</span> signature</li>
+                <li>Generates <span class="crypto">NIZK + Chaum-Pedersen</span> proofs (Fiat-Shamir transform)</li>
+            </ul>
+            <div class="pqc-note">⚡ PQC: <span class="pqc">ML-KEM</span> (encryption), <span class="pqc">ML-DSA</span> (signatures), <span class="pqc">Lattice-based FS with aborts</span> (ZK proofs)</div>
+        </div>
+        
+        <div class="phase">
+            <span class="phase-title">3. Tallying Phase</span>
+            <ul>
+                <li><b>Ballot Validation:</b> Verify <span class="crypto">ECDSA signatures</span> and <span class="crypto">Sigma protocols</span></li>
+                <li><b>Mixnet Shuffling:</b> <span class="crypto">ElGamal-compatible</span> Terelius-Wikström mixnet</li>
+                <li><b>Threshold Decryption:</b> Partial decryptions with <span class="crypto">Lagrange interpolation</span></li>
+                <li>Result: Decrypted vote points on the final bulletin board</li>
+            </ul>
+            <div class="pqc-note">⚡ PQC: <span class="pqc">Threshold ML-KEM</span> (decryption), <span class="pqc">Ring-LWE shuffle</span> (mixnet), <span class="pqc">Fiat-Shamir with aborts</span> (proofs)</div>
+        </div>
+        
+        <div class="phase">
+            <span class="phase-title">4. Notification Phase</span>
+            <ul>
+                <li>Compute voter-specific term: <span class="crypto">g^r = ∏(g^r_i)</span> from all tellers</li>
+                <li>Send <span class="crypto">EC-ElGamal encrypted</span> notification to each voter</li>
+            </ul>
+            <div class="pqc-note">⚡ PQC: <span class="pqc">ML-KEM</span> replaces EC-ElGamal for notifications</div>
+        </div>
+        
+        <div class="phase">
+            <span class="phase-title">5. Verification Phase</span>
+            <ul>
+                <li>Voter computes commitment: <span class="crypto">g^(r·x)</span> using their trapdoor key</li>
+                <li>Looks up their vote on the bulletin board by matching <span class="crypto">EC-ElGamal commitment</span></li>
+                <li>Verifies vote was recorded correctly</li>
+            </ul>
+            <div class="pqc-note">⚡ PQC: <span class="pqc">Fiat-Shamir with aborts</span> for commitment verification</div>
+        </div>
+        
+        <div class="phase">
+            <span class="phase-title">6. Coercion Mitigation & Individual Views</span>
+            <ul>
+                <li>Voters can produce <span class="crypto">fake dual keys</span> that "verify" to a different vote</li>
+                <li>Individual views use <span class="crypto">EC-ElGamal re-encryption</span> shuffle</li>
+            </ul>
+            <div class="pqc-note">⚡ PQC: <span class="pqc">Fiat-Shamir with aborts</span> for coercion mitigation and individual views</div>
+        </div>
+        
+        <h3>Post-Quantum Cryptography Mapping</h3>
+        <table>
+            <tr><th>Component</th><th>Classical (Current)</th><th>PQC Alternative</th></tr>
+            <tr><td>Key Generation</td><td>ECDSA</td><td><span class="pqc">ML-DSA</span></td></tr>
+            <tr><td>Vote Encryption</td><td>EC-ElGamal</td><td><span class="pqc">ML-KEM</span></td></tr>
+            <tr><td>Digital Signatures</td><td>ECDSA</td><td><span class="pqc">ML-DSA</span></td></tr>
+            <tr><td>Zero-Knowledge Proofs</td><td>NIZK + Chaum-Pedersen + Fiat-Shamir</td><td><span class="pqc">Lattice-based FS / Picnic / zk-STARKs</span></td></tr>
+            <tr><td>Threshold Decryption</td><td>EC-ElGamal threshold</td><td><span class="pqc">Threshold ML-KEM (research)</span></td></tr>
+            <tr><td>Mixnet Shuffle</td><td>ElGamal-compatible</td><td><span class="pqc">Ring-LWE shuffle</span></td></tr>
+            <tr><td>Hash Functions</td><td>SHA-256</td><td><span class="pqc">SHA-3 / SHAKE-256</span></td></tr>
+        </table>
+        
+        <h3>Understanding the Output</h3>
+        <p><b>Vote (x, y, curve):</b> The decrypted elliptic curve point representing the vote. 
+        The actual vote value v can be recovered by computing discrete log: find v where vG = (x,y).</p>
+        <p><b>Commitment:</b> A cryptographic binding (<span class="crypto">SHA-256</span> based, PQC: <span class="pqc">SHA-3</span>) 
+        that allows voters to verify their vote without revealing how they voted. Derived from trapdoor keys and teller random values.</p>
+        """
 
-        table = QTableWidget()
-        table.setColumnCount(3)
-        table.setHorizontalHeaderLabels(["Component / Function", "Non-PQC", "PQC Alternative"])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        table.verticalHeader().setVisible(False)
-
-        pqc_data = [
-            ("Key Generation (poc_setup)", "ECDSA", "ML-DSA"),
-            ("Threshold Setup (setup)", "EC-ElGamal + Shamir", "Threshold ML-KEM (experimental)"),
-            ("Vote Encryption (voting)", "EC-ElGamal", "ML-KEM"),
-            ("Vote Signature (voting)", "ECDSA", "ML-DSA"),
-            ("Zero-Knowledge Proofs (voting)", "NIZK + Chaum-Pedersen + Fiat-Shamir", "Lattice-based FS with aborts / Picnic / zk-STARKs"),
-            ("Tallying (encryption/decryption)", "EC-ElGamal threshold decryption", "Threshold ML-KEM (research)"),
-            ("Re-encryption Mixnet (tallying)", "ElGamal-compatible mixnet", "Lattice-based shuffle (Ring-LWE)"),
-            ("Partial Decryption Proofs (tallying)", "Sigma protocols (EC-based)", "Fiat-Shamir with aborts (lattice-based)"),
-            ("Commitments / Hash Functions", "SHA-256", "SHA-3 / SHAKE-256"),
-            ("Notification (voter term computation)", "EC-ElGamal", "ML-KEM"),
-            ("Verification (ballot checking)", "EC-ElGamal commitments", "Fiat-Shamir with aborts"),
-            ("Individual Views", "EC-ElGamal re-encryption", "Fiat-Shamir with aborts"),
-            ("Coercion Mitigation", "EC-ElGamal commitments", "Fiat-Shamir with aborts"),
-        ]
-
-        table.setRowCount(len(pqc_data))
-        for i, (comp, classical, pqc) in enumerate(pqc_data):
-            table.setItem(i, 0, QTableWidgetItem(comp))
-            table.setItem(i, 1, QTableWidgetItem(classical))
-            table.setItem(i, 2, QTableWidgetItem(pqc))
-
-        layout.addWidget(table)
-        return layout
-
-    # =========================
-    #   ACTIONS
-    # =========================
     def do_tally(self):
         global LAST_BB
         
@@ -333,9 +469,6 @@ class AdminApp(QWidget):
             self.table_stats.hide()
 
     def do_show_bb(self):
-        """
-        Get bulletin board from local storage and refresh table.
-        """
         res = get_bb_direct()
         
         if res.get("status") != "ok":
