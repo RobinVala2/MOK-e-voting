@@ -4,8 +4,17 @@ import re
 def run_hyperion(voters=50, tellers=3, threshold=2, max_votes=2):
     """
     Run Hyperion main.py as subprocess and capture its console output.
+    Sets multiprocessing to 'fork' mode for Linux compatibility.
     """
-    cmd = ["python3", "hyperion/main.py", str(voters), str(tellers), str(threshold), "-maxv", str(max_votes)]
+    # Wrapper that sets multiprocessing start method before running main.py
+    wrapper_code = f"""
+    import sys
+    import multiprocessing
+    multiprocessing.set_start_method('fork')
+    sys.argv = ['hyperion/main.py', '{voters}', '{tellers}', '{threshold}', '-maxv', '{max_votes}']
+    exec(compile(open('hyperion/main.py').read(), 'hyperion/main.py', 'exec'))
+    """
+    cmd = ["python3", "-c", wrapper_code]
     proc = subprocess.run(cmd, capture_output=True, text=True)
 
     output = proc.stdout
