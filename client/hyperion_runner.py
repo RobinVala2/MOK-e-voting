@@ -1,29 +1,79 @@
 import subprocess
 import re
+import os
 
-def run_hyperion(voters=50, tellers=3, threshold=2, max_votes=2):
+def run_hyperion(voters=50, tellers=3, threshold=2, max_votes=2, use_pqc=False):
     """
-    Run Hyperion main.py as subprocess and capture its console output.
     Sets multiprocessing to 'fork' mode for Linux compatibility.
+    
+    Args:
+        voters: Number of voters
+        tellers: Number of tellers
+        threshold: Threshold for decryption (K of N)
+        max_votes: Maximum vote value
+        use_pqc: If True, use post-quantum ML-DSA signatures instead of ECDSA
     """
-    # Wrapper that sets multiprocessing start method before running main.py
-    wrapper_code = f"""
-    import sys
-    import multiprocessing
+    if use_pqc:
+        # Run via PQC wrapper which patches Hyperion to use ML-DSA
+        wrapper_code = f"""
+import sys
+import os
+import traceback
+import multiprocessing
+
+try:
     multiprocessing.set_start_method('fork')
+except RuntimeError:
+    pass
+
+# Setup paths - add project root and hyperion to path
+project_root = os.getcwd()
+sys.path.insert(0, os.path.join(project_root, 'hyperion'))
+sys.path.insert(0, project_root)
+
+try:
+    # Import and patch primitives with PQC
+    from client.pqc_primitives import MLDSA
+    
+    import primitives
+    primitives.DSA = MLDSA
+    print("[PQC] ML-DSA enabled - replacing ECDSA signatures")
+    print()
+    
+    # Run Hyperion
     sys.argv = ['hyperion/main.py', '{voters}', '{tellers}', '{threshold}', '-maxv', '{max_votes}']
     exec(compile(open('hyperion/main.py').read(), 'hyperion/main.py', 'exec'))
-    """
+except Exception as e:
+    print(f"[PQC ERROR] {{type(e).__name__}}: {{e}}")
+    traceback.print_exc()
+    sys.exit(1)
+"""
+    else:
+        # Standard mode - run Hyperion with fork method set
+        wrapper_code = f"""
+import sys
+import multiprocessing
+multiprocessing.set_start_method('fork')
+sys.argv = ['hyperion/main.py', '{voters}', '{tellers}', '{threshold}', '-maxv', '{max_votes}']
+exec(compile(open('hyperion/main.py').read(), 'hyperion/main.py', 'exec'))
+"""
+    
     cmd = ["python3", "-c", wrapper_code]
     proc = subprocess.run(cmd, capture_output=True, text=True)
 
     output = proc.stdout
+    stderr = proc.stderr
+    
+    if stderr:
+        output = output + "\n[STDERR]\n" + stderr
+    
     timings = parse_timings(output)
     bb = parse_bulletin_board(output)
     return {
         "raw_output": output,
         "timings": timings,
         "bulletin_board": bb,
+        "pqc_enabled": use_pqc,
     }
 
 def parse_timings(text):

@@ -8,3 +8,4 @@ coverage
 gmpy2
 openpyxl==3.1.0
 texttable==1.6.7
+dilithium-py
