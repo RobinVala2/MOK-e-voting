@@ -262,20 +262,20 @@ class AdminApp(QWidget):
     def _get_protocol_explanation(self):
         return """
         <style>
-            body { font-family: Arial, sans-serif; font-size: 11px; }
-            h3 { color: #2c3e50; margin-bottom: 5px; margin-top: 15px; }
-            .phase { margin-bottom: 10px; padding: 8px; background-color: #f8f9fa; border-left: 3px solid #3498db; }
+            body { font-family: Arial, sans-serif; font-size: 11px; background-color: white; color: #000; }
+            h3 { color: #1a5276; margin-bottom: 5px; margin-top: 15px; }
+            .phase { margin-bottom: 10px; padding: 8px; background-color: white; border-left: 3px solid #3498db; }
             .phase-title { font-weight: bold; color: #2980b9; }
-            .crypto { color: #8e44ad; font-family: monospace; font-size: 10px; }
-            .pqc { color: #27ae60; font-family: monospace; font-size: 10px; font-weight: bold; }
-            .pqc-note { color: #27ae60; font-style: italic; font-size: 10px; margin-top: 3px; }
+            .crypto { color: #1a5276; font-family: monospace; font-weight: bold; }
+            .pqc { color: #5dade2; font-family: monospace; font-weight: bold; }
+            .pqc-note { color: #2874a6; font-style: italic; margin-top: 3px; }
             ul { margin: 5px 0; padding-left: 20px; }
-            li { margin: 3px 0; }
-            .mapping { font-size: 10px; color: #555; margin-left: 15px; }
-            table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 10px; }
+            li { margin: 3px 0; color: #000; }
+            .mapping { color: #555; margin-left: 15px; }
+            table { border-collapse: collapse; width: 100%; margin: 8px 0; background-color: white; }
             th { background-color: #3498db; color: white; padding: 5px; text-align: left; }
-            td { padding: 4px; border-bottom: 1px solid #ddd; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
+            td { padding: 4px; border-bottom: 1px solid #ddd; background-color: white; color: #000; }
+            tr:nth-child(even) { background-color: white; }
         </style>
         
         <h3>How Hyperion Computes Voting Results</h3>
@@ -287,7 +287,7 @@ class AdminApp(QWidget):
                 <li>Create a shared <span class="crypto">EC-ElGamal public key</span> (P-256 curve)</li>
                 <li>At least K of T tellers needed to decrypt (threshold = K)</li>
             </ul>
-            <div class="pqc-note">⚡ PQC: <span class="pqc">Threshold ML-KEM</span> (experimental) replaces EC-ElGamal + Shamir</div>
+            <div class="pqc-note">PQC: <span class="pqc">Threshold ML-KEM</span> (experimental) replaces EC-ElGamal + Shamir</div>
         </div>
         
         <div class="phase">
@@ -299,7 +299,7 @@ class AdminApp(QWidget):
                 <li>Voter signs ballot with <span class="crypto">ECDSA</span> signature</li>
                 <li>Generates <span class="crypto">NIZK + Chaum-Pedersen</span> proofs (Fiat-Shamir transform)</li>
             </ul>
-            <div class="pqc-note">⚡ PQC: <span class="pqc">ML-KEM</span> (encryption), <span class="pqc">ML-DSA</span> (signatures), <span class="pqc">Lattice-based FS with aborts</span> (ZK proofs)</div>
+            <div class="pqc-note">PQC: <span class="pqc">ML-KEM</span> (encryption), <span class="pqc">ML-DSA</span> (signatures), <span class="pqc">Lattice-based FS with aborts</span> (ZK proofs)</div>
         </div>
         
         <div class="phase">
@@ -310,7 +310,7 @@ class AdminApp(QWidget):
                 <li><b>Threshold Decryption:</b> Partial decryptions with <span class="crypto">Lagrange interpolation</span></li>
                 <li>Result: Decrypted vote points on the final bulletin board</li>
             </ul>
-            <div class="pqc-note">⚡ PQC: <span class="pqc">Threshold ML-KEM</span> (decryption), <span class="pqc">Ring-LWE shuffle</span> (mixnet), <span class="pqc">Fiat-Shamir with aborts</span> (proofs)</div>
+            <div class="pqc-note">PQC: <span class="pqc">Threshold ML-KEM</span> (decryption), <span class="pqc">Ring-LWE shuffle</span> (mixnet), <span class="pqc">Fiat-Shamir with aborts</span> (proofs)</div>
         </div>
         
         <div class="phase">
@@ -319,7 +319,7 @@ class AdminApp(QWidget):
                 <li>Compute voter-specific term: <span class="crypto">g^r = ∏(g^r_i)</span> from all tellers</li>
                 <li>Send <span class="crypto">EC-ElGamal encrypted</span> notification to each voter</li>
             </ul>
-            <div class="pqc-note">⚡ PQC: <span class="pqc">ML-KEM</span> replaces EC-ElGamal for notifications</div>
+            <div class="pqc-note">PQC: <span class="pqc">ML-KEM</span> replaces EC-ElGamal for notifications</div>
         </div>
         
         <div class="phase">
@@ -329,7 +329,7 @@ class AdminApp(QWidget):
                 <li>Looks up their vote on the bulletin board by matching <span class="crypto">EC-ElGamal commitment</span></li>
                 <li>Verifies vote was recorded correctly</li>
             </ul>
-            <div class="pqc-note">⚡ PQC: <span class="pqc">Fiat-Shamir with aborts</span> for commitment verification</div>
+            <div class="pqc-note">PQC: <span class="pqc">Fiat-Shamir with aborts</span> for commitment verification</div>
         </div>
         
         <div class="phase">
@@ -338,7 +338,7 @@ class AdminApp(QWidget):
                 <li>Voters can produce <span class="crypto">fake dual keys</span> that "verify" to a different vote</li>
                 <li>Individual views use <span class="crypto">EC-ElGamal re-encryption</span> shuffle</li>
             </ul>
-            <div class="pqc-note">⚡ PQC: <span class="pqc">Fiat-Shamir with aborts</span> for coercion mitigation and individual views</div>
+            <div class="pqc-note">PQC: <span class="pqc">Fiat-Shamir with aborts</span> for coercion mitigation and individual views</div>
         </div>
         
         <h3>Post-Quantum Cryptography Mapping</h3>
