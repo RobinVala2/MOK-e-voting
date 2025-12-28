@@ -1,5 +1,4 @@
 set -e
-
 REPO_URL="https://github.com/hyperion-voting/hyperion.git"
 MY_PROJECT_DIR="$(pwd)"    
 HYPERION_DIR="$MY_PROJECT_DIR/hyperion"  
@@ -59,7 +58,6 @@ fi
 export PYTHONPATH="$HYPERION_DIR:$PYTHONPATH"
 
 cp "$MY_PROJECT_DIR/hyperion_files/parties.py" "$HYPERION_DIR/parties.py"
-cp "$MY_PROJECT_DIR/hyperion_files/main.py" "$HYPERION_DIR/main.py"
 
 echo
 echo "[INFO] Setup complete."
