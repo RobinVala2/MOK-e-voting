@@ -5,9 +5,9 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout,
     QPushButton, QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
     QSpinBox, QFormLayout, QGroupBox, QMessageBox, QProgressDialog, QScrollArea,
-    QSplitter, QFrame, QSizePolicy
+    QSplitter, QFrame, QSizePolicy, QCheckBox
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QFont
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -15,6 +15,40 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from .hyperion_runner import run_hyperion as hyperion_run
 
 LAST_BB = None
+
+class HyperionWorker(QThread):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+    
+    def __init__(self, voters, tellers, threshold, max_votes, use_pqc, project_root):
+        super().__init__()
+        self.voters = voters
+        self.tellers = tellers
+        self.threshold = threshold
+        self.max_votes = max_votes
+        self.use_pqc = use_pqc
+        self.project_root = project_root
+        self.old_cwd = os.getcwd()
+    
+    def run(self):
+        try:
+            os.chdir(self.project_root)
+            result = hyperion_run(
+                voters=self.voters,
+                tellers=self.tellers,
+                threshold=self.threshold,
+                max_votes=self.max_votes,
+                use_pqc=self.use_pqc
+            )
+            os.chdir(self.old_cwd)
+            self.finished.emit({
+                "tally": result["bulletin_board"],
+                "timings": result["timings"],
+            })
+        except Exception as e:
+            os.chdir(self.old_cwd)
+            self.error.emit(str(e))
+
 
 def format_vote_display(vote_str):
     """
@@ -105,6 +139,12 @@ class AdminApp(QWidget):
         self.spin_max_votes.setMaximum(100)
         self.spin_max_votes.setValue(2)
         settings_layout.addRow("Max Vote Value:", self.spin_max_votes)
+        
+        self.chk_pqc = QCheckBox("Enable Post-Quantum Cryptography (ML-DSA)")
+        self.chk_pqc.setToolTip(
+            "When enabled, replaces ECDSA signatures with ML-DSA.\n\n"
+        )
+        settings_layout.addRow("", self.chk_pqc)
         
         settings_group.setLayout(settings_layout)
         layout.addWidget(settings_group)
@@ -361,13 +401,12 @@ class AdminApp(QWidget):
         """
 
     def do_tally(self):
-        global LAST_BB
-        
         # Get settings from spin boxes
         voters = self.spin_voters.value()
         tellers = self.spin_tellers.value()
         threshold = self.spin_threshold.value()
         max_votes = self.spin_max_votes.value()
+        use_pqc = self.chk_pqc.isChecked()
 
         # Validate threshold <= tellers
         if threshold > tellers:
@@ -375,34 +414,24 @@ class AdminApp(QWidget):
                               f"Threshold ({threshold}) cannot be greater than number of tellers ({tellers})")
             return
 
-        # Show progress dialog
-        progress = QProgressDialog("Running Hyperion Protocol...", None, 0, 0, self)
-        progress.setWindowTitle("Please Wait")
-        progress.setWindowModality(Qt.WindowModal)
-        progress.setCancelButton(None)
-        progress.show()
-        QApplication.processEvents()
-
-        try:
-            old_cwd = os.getcwd()
-            os.chdir(PROJECT_ROOT)
-            result = hyperion_run(voters, tellers, threshold, max_votes)
-            os.chdir(old_cwd)
-            LAST_BB = result["bulletin_board"]
-            res = {
-                "status": "ok",
-                "tally": result["bulletin_board"],
-                "timings": result["timings"],
-            }
-            
-        except Exception as e:
-            os.chdir(old_cwd)
-            progress.close()
-            QMessageBox.critical(self, "Error", f"Error running Hyperion protocol:\n{str(e)}")
-            return
-        finally:
-            progress.close()
-
+        mode_text = "PQC Mode (ML-DSA-65)" if use_pqc else "Classical Mode (ECDSA)"
+        self.progress = QProgressDialog(f"Running Hyperion Protocol...\n{mode_text}", None, 0, 0, self)
+        self.progress.setWindowTitle("Please Wait")
+        self.progress.setWindowModality(Qt.WindowModal)
+        self.progress.setCancelButton(None)
+        self.progress.setMinimumWidth(300)
+        self.progress.setMinimumDuration(0)
+        self.progress.show()
+        
+        self.worker = HyperionWorker(voters, tellers, threshold, max_votes, use_pqc, PROJECT_ROOT)
+        self.worker.finished.connect(self._on_hyperion_finished)
+        self.worker.start()
+    
+    def _on_hyperion_finished(self, res):
+        global LAST_BB
+        self.progress.close()
+        LAST_BB = res.get("tally", [])
+        
         # Populate tally table
         tally_rows = res.get("tally", [])
         self.table_tally.setRowCount(len(tally_rows))
