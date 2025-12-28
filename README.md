@@ -14,7 +14,15 @@ This project provides a graphical user interface for:
 - One-click Hyperion protocol execution
 - Bulletin board visualization
 - Post-quantum cryptography mapping reference
-- FastAPI backend for protocol coordination
+- **ML-DSA-65 support** - optional PQC signatures
+
+## Post-Quantum Cryptography
+
+This project adds optional post-quantum security to Hyperion by replacing classical ECDSA signatures with **ML-DSA-65**.
+
+Enable PQC mode via the checkbox in the GUI. The implementation:
+- Uses `dilithium-py`
+- Patches Hyperion's DSA class at runtime
 
 ## Prerequisites
 
