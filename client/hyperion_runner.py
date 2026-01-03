@@ -1,6 +1,5 @@
 import subprocess
 import re
-import os
 
 def run_hyperion(voters=50, tellers=3, threshold=2, max_votes=2, use_pqc=False):
     """
