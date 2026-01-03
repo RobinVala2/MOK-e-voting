@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout,
     QPushButton, QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QTextEdit,
     QSpinBox, QFormLayout, QGroupBox, QMessageBox, QProgressDialog, QScrollArea,
-    QSplitter, QFrame, QSizePolicy, QCheckBox
+    QSplitter, QFrame, QCheckBox
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap, QFont
@@ -82,10 +82,10 @@ def get_bb_direct():
     return {"status": "error", "detail": "No bulletin board available. Run Hyperion first."}
 
 
-class AdminApp(QWidget):
+class GUIApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Hyperion Admin")
+        self.setWindowTitle("Hyperion GUI")
         self.resize(1100, 700)
 
         layout = QVBoxLayout()
@@ -517,6 +517,6 @@ class AdminApp(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    win = AdminApp()
+    win = GUIApp()
     win.show()
     sys.exit(app.exec_())
