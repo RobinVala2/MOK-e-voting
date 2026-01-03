@@ -6,5 +6,5 @@ source "$MY_PROJECT_DIR/.venv/bin/activate"
 
 export PYTHONPATH="$HYPERION_DIR:$MY_PROJECT_DIR:$PYTHONPATH"
 
-echo "[*] Starting Hyperion Admin GUI..."
+echo "[*] Starting Hyperion GUI..."
 python -m client.GUI
