@@ -1,6 +1,3 @@
-fastapi
-uvicorn
-httpx
 PyQt5
 pynacl
 pycryptodome==3.20.0
