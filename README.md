@@ -72,7 +72,7 @@ Illustrates the main phases of the Hyperion e-voting protocol:
 4. **Notification** - Send verification data to voters
 5. **Verification** - Voters verify their vote was recorded correctly
 
-![Sequence Diagram](diagrams/seq.png)
+![Sequence Diagram](diagrams/seq2_update.png)
 
 ### Protocol Flow
 
