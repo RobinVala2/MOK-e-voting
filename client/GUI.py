@@ -112,7 +112,7 @@ class GUIApp(QWidget):
         # Number of Voters
         self.spin_voters = QSpinBox()
         self.spin_voters.setMinimum(1)
-        self.spin_voters.setMaximum(1000)
+        self.spin_voters.setMaximum(100000)
         self.spin_voters.setValue(50)
         settings_layout.addRow("Number of Voters:", self.spin_voters)
         
@@ -215,7 +215,7 @@ class GUIApp(QWidget):
         
         self.seq_diagram = QLabel()
         self.seq_diagram.setAlignment(Qt.AlignCenter)
-        diagram_path = os.path.join(PROJECT_ROOT, "diagrams", "seq.png")
+        diagram_path = os.path.join(PROJECT_ROOT, "diagrams", "seq2_update.png")
         if os.path.exists(diagram_path):
             pixmap = QPixmap(diagram_path)
             scaled_pixmap = pixmap.scaledToWidth(350, Qt.SmoothTransformation)
@@ -327,7 +327,7 @@ class GUIApp(QWidget):
                 <li>Create a shared <span class="crypto">EC-ElGamal public key</span> (P-256 curve)</li>
                 <li>At least K of T tellers needed to decrypt (threshold = K)</li>
             </ul>
-            <div class="pqc-note">PQC: <span class="pqc">Threshold ML-KEM</span> (experimental) replaces EC-ElGamal + Shamir</div>
+            <div class="pqc-note">PQC: <span class="pqc">Threshold ML-KEM</span> (research) replaces EC-ElGamal threshold encryption</div>
         </div>
         
         <div class="phase">
@@ -339,7 +339,7 @@ class GUIApp(QWidget):
                 <li>Voter signs ballot with <span class="crypto">ECDSA</span> signature</li>
                 <li>Generates <span class="crypto">NIZK + Chaum-Pedersen</span> proofs (Fiat-Shamir transform)</li>
             </ul>
-            <div class="pqc-note">PQC: <span class="pqc">ML-KEM</span> (encryption), <span class="pqc">ML-DSA</span> (signatures), <span class="pqc">Lattice-based FS with aborts</span> (ZK proofs)</div>
+            <div class="pqc-note">PQC: <span class="pqc">ML-KEM + symmetric DEM</span> (encryption), <span class="pqc">ML-DSA</span> (signatures), <span class="pqc">Lattice-based Sigma protocols + Fiat–Shamir with aborts</span> (ZK proofs)</div>
         </div>
         
         <div class="phase">
@@ -350,7 +350,7 @@ class GUIApp(QWidget):
                 <li><b>Threshold Decryption:</b> Partial decryptions with <span class="crypto">Lagrange interpolation</span></li>
                 <li>Result: Decrypted vote points on the final bulletin board</li>
             </ul>
-            <div class="pqc-note">PQC: <span class="pqc">Threshold ML-KEM</span> (decryption), <span class="pqc">Ring-LWE shuffle</span> (mixnet), <span class="pqc">Fiat-Shamir with aborts</span> (proofs)</div>
+            <div class="pqc-note">PQC: <span class="pqc">Threshold ML-KEM</span> (decryption), <span class="pqc">Ring-LWE shuffle</span> (mixnet), <span class="pqc">Lattice-based Sigma protocols +Fiat-Shamir with aborts</span> (proofs)</div>
         </div>
         
         <div class="phase">
@@ -359,7 +359,7 @@ class GUIApp(QWidget):
                 <li>Compute voter-specific term: <span class="crypto">g^r = ∏(g^r_i)</span> from all tellers</li>
                 <li>Send <span class="crypto">EC-ElGamal encrypted</span> notification to each voter</li>
             </ul>
-            <div class="pqc-note">PQC: <span class="pqc">ML-KEM</span> replaces EC-ElGamal for notifications</div>
+            <div class="pqc-note">PQC: <span class="pqc">ML-KEM + symmetric DEM</span> replaces EC-ElGamal for notifications</div>
         </div>
         
         <div class="phase">
@@ -369,7 +369,7 @@ class GUIApp(QWidget):
                 <li>Looks up their vote on the bulletin board by matching <span class="crypto">EC-ElGamal commitment</span></li>
                 <li>Verifies vote was recorded correctly</li>
             </ul>
-            <div class="pqc-note">PQC: <span class="pqc">Fiat-Shamir with aborts</span> for commitment verification</div>
+            <div class="pqc-note">PQC: <span class="pqc">Lattice-based Sigma protocols + Fiat–Shamir with aborts</span> for commitment verification</div>
         </div>
         
         <div class="phase">
@@ -378,18 +378,17 @@ class GUIApp(QWidget):
                 <li>Voters can produce <span class="crypto">fake dual keys</span> that "verify" to a different vote</li>
                 <li>Individual views use <span class="crypto">EC-ElGamal re-encryption</span> shuffle</li>
             </ul>
-            <div class="pqc-note">PQC: <span class="pqc">Fiat-Shamir with aborts</span> for coercion mitigation and individual views</div>
+            <div class="pqc-note">PQC: <span class="pqc">Lattice-based Sigma protocols + Fiat–Shamir with aborts</span> for coercion mitigation and individual views</div>
         </div>
         
         <h3>Post-Quantum Cryptography Mapping</h3>
         <table>
             <tr><th>Component</th><th>Classical (Current)</th><th>PQC Alternative</th></tr>
-            <tr><td>Key Generation</td><td>ECDSA</td><td><span class="pqc">ML-DSA</span></td></tr>
-            <tr><td>Vote Encryption</td><td>EC-ElGamal</td><td><span class="pqc">ML-KEM</span></td></tr>
+            <tr><td>Vote Encryption</td><td>EC-ElGamal</td><td><span class="pqc">ML-KEM + symmetric DEM</span></td></tr>
             <tr><td>Digital Signatures</td><td>ECDSA</td><td><span class="pqc">ML-DSA</span></td></tr>
-            <tr><td>Zero-Knowledge Proofs</td><td>NIZK + Chaum-Pedersen + Fiat-Shamir</td><td><span class="pqc">Lattice-based FS / Picnic / zk-STARKs</span></td></tr>
+            <tr><td>Zero-Knowledge Proofs</td><td>NIZK + Chaum-Pedersen + Fiat-Shamir</td><td><span class="pqc">Lattice-based Sigma protocols + FS-with-aborts / zk-STARKs</span></td></tr>
             <tr><td>Threshold Decryption</td><td>EC-ElGamal threshold</td><td><span class="pqc">Threshold ML-KEM (research)</span></td></tr>
-            <tr><td>Mixnet Shuffle</td><td>ElGamal-compatible</td><td><span class="pqc">Ring-LWE shuffle</span></td></tr>
+            <tr><td>Mixnet Shuffle</td><td>ElGamal-compatible (Terelius-Wikström)</td><td><span class="pqc">Ring-LWE shuffle (research)</span></td></tr>
             <tr><td>Hash Functions</td><td>SHA-256</td><td><span class="pqc">SHA-3 / SHAKE-256</span></td></tr>
         </table>
         
